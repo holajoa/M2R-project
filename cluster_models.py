@@ -160,7 +160,7 @@ plt.axis('equal')
 plt.subplot(133)
 r, k = k_estimate(tcp[:, 0], tcp[:, 1], window=boundaries) 
 r0, k0 = k_estimate(hpp[:, 0], hpp[:, 1], window=boundaries) 
-plt.plot(r, k-np.pi*r**2, 'r-', label=r'$\hat{K}}_{thom}-\pi r^2$') 
+plt.plot(r, k-np.pi*r**2, 'r-', label=r'$\hat{K}_{thom}-\pi r^2$') 
 plt.plot(r0, k0-np.pi*r0**2, 'b-', label=r'$\hat{K}_{csr}-\pi r^2$') 
 
 plt.plot(r, r*0, 'k--')
