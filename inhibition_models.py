@@ -1,11 +1,57 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from scipy.spatial.distance import squareform, pdist
+
+def k_estimate(x, y, window=[0, 1, 0, 1], n=200, r_max=None):
+    points = np.column_stack((x, y))
+    x_min, x_max, y_min, y_max = window
+    area = (y_max-y_min)*(x_max-x_min)
+    N = len(points)
+    lam_hat = N/area
+    
+    u = squareform(pdist(points)) + np.eye(N)
+    d1 = np.minimum(x - x_min, x_max - x)
+    d2 = np.minimum(y - y_min, y_max - y)
+    d1 = np.tile(d1, (N, 1))
+    d2 = np.tile(d2, (N, 1))
+    d_hypot = np.hypot(d1, d2)
+    
+    w1 = 1 - 1/np.pi*(np.arccos(np.minimum(d1, u)/u) + np.arccos(np.minimum(d2, u)/u))
+    uu = u.copy()
+    uu[uu < d_hypot] = d_hypot[uu < d_hypot]
+    w2 = 3/4 - 1/(2*np.pi)*(np.arccos(d1/uu) + np.arccos(d2/uu))
+    
+    d_hypot = np.hypot(d1, d2)
+    w_ind = u <= d_hypot
+    w = w_ind*w1 + ~w_ind*w2
+    u -= np.eye(N)
+    
+    if not r_max:
+        r_max = min(y_max-y_min, x_max-x_min)/2
+    
+    r = np.linspace(0, r_max, n)
+    k = np.zeros(n)
+    for i in range(n):
+        d_ind = (u < r[i]) & (u > 0)
+        k[i] = np.sum((d_ind/w)/N/lam_hat)
+    
+    return r, k
+
+def csr(lam, window=[0, 1, 0, 1]):
+    x_min, x_max, y_min, y_max = window
+    area = (y_max-y_min) * (x_max-x_min)
+    N = np.random.poisson(lam * area)
+    x_list = np.random.uniform(x_min, x_max, N)
+    y_list = np.random.uniform(y_min, y_max, N)
+    return np.c_[x_list, y_list]
 
 
 ### RANDOM VS INHIBITED (THINNED) PROCESS ###
 
-def inhibited_process(xmax=11, ymax=11, expectation=20, dist=.4):
+import numpy as np
+
+def inhibited_process(xmax=1.1, ymax=1.1, expectation=200, dist=.05):
     xN, yN = np.random.poisson(expectation*xmax), np.random.poisson(expectation*ymax)
     events = np.c_[np.random.uniform(low=0, high=xmax, size=xN), np.random.uniform(low=0, high=ymax, size=xN)]
     L = len(events)
@@ -18,25 +64,43 @@ def inhibited_process(xmax=11, ymax=11, expectation=20, dist=.4):
     for i, row in enumerate(D):
         if (row[row>0] < dist).any():
             ind[i] = False
+    #print(ind[i])
     return events, events[ind]
 
+np.random.seed(777)
 spp0, spp = inhibited_process()
+spp0 = spp0 - np.array([0.05, 0.05])
+spp = spp - np.array([0.05, 0.05])
+intensity = spp.shape[0] / 1
+hpp = csr(lam=intensity, window=[0, 1.1, 0, 1.1])
+hpp = np.array([s for s in hpp if (s[0]<=1 and s[0]>=0 and s[1]<=1 and s[1]>=0)])
+r1, k1 = k_estimate(spp[:, 0], spp[:, 1], window=[0, 1, 0, 1])
+r0, k0 = k_estimate(hpp[:, 0], hpp[:, 1], window=[0, 1, 0, 1])
 
-plt.figure(figsize=(11,5))
-plt.subplot(121)
-plt.plot(spp0[:, 0], spp0[:, 1], 'go', label='Removed points')
-plt.plot(spp[:, 0], spp[:, 1], 'ko', label='Retained points')
-plt.xlim(0.5, 10.5)
-plt.ylim(0.5, 10.5)
-plt.title('Poisson pattern before thinning')
+plt.figure(figsize=(17,5))
+plt.subplot(131)
+plt.scatter(spp0[:, 0], spp0[:, 1], facecolors='none', edgecolors='k', alpha=0.3, label='removed points')
+plt.plot(spp[:, 0], spp[:, 1], 'ko')
+plt.xlim(0.05, 1.05)
+plt.ylim(0.05, 1.05)
+plt.title('CSR pattern after Matern I thinning')
+plt.xticks([])
+plt.yticks([])
 plt.legend()
 
-plt.subplot(122)
-plt.plot(spp[:, 0], spp[:, 1], 'ko')
-plt.xlim(0.5, 10.5)
-plt.ylim(0.5, 10.5)
-plt.title('Poisson pattern after Matern I thinning')
+plt.subplot(132)
+plt.scatter(hpp[:, 0], hpp[:, 1], facecolor='k')
+plt.xticks([])
+plt.yticks([])
+plt.title('CSR pattern with same intensity as the thinned pattern')
 
+plt.subplot(133)
+plt.plot(r0, k0-np.pi*r0**2, '--', label='CSR') 
+plt.plot(r1, k1-np.pi*r1**2, 'r-', label='Matern I') 
+plt.plot(r0, r0*0, 'k-.')
+plt.ylim(-0.055, 0.055)
+plt.title(r'$\hat{K}-\pi r^2$')
+plt.legend()
 plt.show()
 
 
