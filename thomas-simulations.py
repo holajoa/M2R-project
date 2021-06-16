@@ -29,7 +29,7 @@ def k_estimate(x, y, window=[0, 1, 0, 1], n=200, r_max=None):
     u -= np.eye(N)
     
     if not r_max:
-        r_max = min(y_max-y_min, x_max-x_min)/2
+        r_max = min(y_max-y_min, x_max-x_min)/3
     
     r = np.linspace(0, r_max, n)
     k = np.zeros(n)
@@ -146,16 +146,14 @@ plt.figure(figsize=(23, 6))
 plt.subplot(131)
 plt.title('Thomas Process')
 plt.scatter(tcp[:, 0], tcp[:, 1], alpha=0.4)
-plt.xticks([])
-plt.yticks([])
-plt.axis('equal')
+plt.xlim(-1, 1)
+plt.ylim(-1, 1)
 
 plt.subplot(132)
 plt.scatter(hpp[:, 0], hpp[:, 1], alpha=0.4)
 plt.title('CSR')
-plt.xticks([])
-plt.yticks([])
-plt.axis('equal')
+plt.xlim(-1, 1)
+plt.ylim(-1, 1)
 
 plt.subplot(133)
 r, k = k_estimate(tcp[:, 0], tcp[:, 1], window=boundaries) 
